@@ -5,6 +5,7 @@ import re
 import json
 from openai import OpenAI
 from dotenv import load_dotenv
+from shared.ui_helpers import display_profit_bar
 
 # ─── Setup ─────────────────────────────────────────────────────
 st.set_page_config(page_title="Active Listings Dashboard", layout="wide")
@@ -127,14 +128,6 @@ if os.path.exists(CSV_FILE):
                 return {"error": f"JSON parse failed: {e}", "raw": raw}
         else:
             return {"error": "No JSON found in response", "raw": raw}
-    def display_profit_bar(profit_str, verdict):
-        try:
-            percent = float(profit_str.strip('%'))
-            st.markdown(f"**Profit Margin: {profit_str} — Verdict: {verdict}**")
-            st.progress(min(percent / 100, 1.0))
-        except:
-            st.warning("⚠️ Could not parse profit margin.")
-
     # ─── Display Listings ─────────────────────────────────────
     st.markdown(f"### {len(df)} Active Listings")
 

@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
+from shared.ui_helpers import display_profit_bar
 
 st.set_page_config(page_title="AI Analysis", layout="wide")
 st.title("🤖 AI Pricing Analysis")
@@ -28,16 +29,6 @@ df = pd.merge(verdict_df, details_df, on="url", suffixes=("", "_details"))
 if df.empty:
     st.info("No completed AI analyses to display.")
     st.stop()
-
-# ─── Helper for Profit Bar ────────────────────────────────────
-def display_profit_bar(profit_str, verdict):
-    try:
-        percent = float(profit_str.strip('%'))
-        bar_color = "green" if percent >= 20 else "orange" if percent >= 10 else "red"
-        st.markdown(f"**Profit Margin: {profit_str} — Verdict: {verdict}**")
-        st.progress(min(percent / 100, 1.0))
-    except:
-        st.warning("⚠️ Could not parse profit margin.")
 
 # ─── Display Tabs for Analyzed Vehicles ───────────────────────
 tabs = st.tabs([f"{row['year']} {row['make']} {row['model']} {row['variant']}" for _, row in df.iterrows()])
