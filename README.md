@@ -36,11 +36,11 @@ pip install -r requirements.txt
 
 OPENAI_API_KEY=sk-xxxxxxx...
 
-streamlit run app.py
+streamlit run DASHBOARD.py
 
 autosniper2/
 │
-├── app.py                        ← Main Streamlit entrypoint
+├── DASHBOARD.py                   ← Main Streamlit entrypoint
 ├── pages/
 │   ├── ACTIVE LISTINGS.py        ← Displays live auction data + AI buttons
 │   └── ai_analysis_page.py       ← Tabs of completed AI analysis results
