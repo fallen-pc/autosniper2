@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import os
 from extract_links import extract_all_vehicle_links
 
 st.set_page_config(page_title="Extract All Vehicle Links", layout="wide")
@@ -15,10 +16,11 @@ if st.button("🚀 Run Link Scraper"):
         unique_links = progress_data["unique_links"]
         links_saved = progress_data["links_saved"]
         status = progress_data["status"]
+        max_pages = progress_data.get("max_pages") or pages_processed
 
-        # Progress bar (based on pages processed, assuming max pages estimated)
-        st.progress(min(pages_processed / max(pages_processed, 1), 1.0))
-        st.write(f"Processed {pages_processed} page(s)")
+        # Progress bar based on estimated total page count
+        st.progress(min(pages_processed / max_pages, 1.0))
+        st.write(f"Processed {pages_processed} of approximately {max_pages} page(s)")
         st.write(f"Total links found: {total_links}")
         st.write(f"Unique links: {unique_links}")
         st.write(f"Saved {links_saved} links to {CSV_PATH}")

@@ -13,7 +13,8 @@ def extract_all_vehicle_links(return_progress=False):
         "total_links": 0,
         "unique_links": 0,
         "links_saved": 0,
-        "status": "starting"
+        "status": "starting",
+        "max_pages": None,
     }
     all_links = []
     page = 1
@@ -38,6 +39,7 @@ def extract_all_vehicle_links(return_progress=False):
                 max_pages = int(last_page) if last_page.isdigit() else 1
             else:
                 max_pages = 1
+            progress_data["max_pages"] = max_pages
 
         links = []
         for a in soup.find_all("a", href=True):
@@ -61,6 +63,7 @@ def extract_all_vehicle_links(return_progress=False):
         page += 1
 
     progress_data["unique_links"] = len(set(all_links))
+    progress_data["max_pages"] = max_pages
     os.makedirs("CSV_data", exist_ok=True)
     df = pd.DataFrame(sorted(set(all_links)), columns=["url"])
     df.to_csv(OUTPUT_FILE, index=False)
