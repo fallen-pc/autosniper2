@@ -6,6 +6,9 @@ import os
 
 BASE_URL = "https://www.grays.com/search/automotive-trucks-and-marine/motor-vehiclesmotor-cycles/motor-vehicles"
 OUTPUT_FILE = "CSV_data/all_vehicle_links.csv"
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
+}
 
 def extract_all_vehicle_links(return_progress=False):
     progress_data = {
@@ -24,7 +27,12 @@ def extract_all_vehicle_links(return_progress=False):
         url = f"{BASE_URL}?tab=items&isdesktop=1&page={page}"
         progress_data["status"] = f"fetching page {page}"
         print(f"🔄 Fetching: {url}")
-        response = requests.get(url)
+        try:
+            response = requests.get(url, headers=HEADERS, timeout=10)
+        except requests.RequestException as e:
+            progress_data["status"] = f"error fetching page {page}"
+            print(f"❌ Error fetching page: {e}")
+            break
         if response.status_code != 200:
             progress_data["status"] = f"failed to load page {page}"
             print("❌ Failed to load page")
