@@ -4,6 +4,7 @@ import os
 import re
 import json
 import logging
+import subprocess
 from openai import OpenAI
 from dotenv import load_dotenv
 from shared.ui_helpers import display_profit_bar
@@ -25,12 +26,20 @@ logging.basicConfig(filename=LOG_FILE, level=logging.ERROR)
 # ─── Refresh Listings ─────────────────────────────────────────
 if st.button("🔄 Refresh Active Listings"):
     with st.spinner("Updating bid and time data..."):
-        exit_code = os.system("python scripts/update_bids.py")
-        if exit_code == 0:
+        try:
+            result = subprocess.run(
+                ["python", "scripts/update_bids.py"],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
             st.success("✅ Listings updated.")
+            if result.stdout:
+                st.text(result.stdout)
             st.cache_data.clear()
-        else:
-            st.error("❌ Update failed. Check logs or terminal output.")
+        except subprocess.CalledProcessError as e:
+            error_msg = e.stderr or e.stdout
+            st.error(f"❌ Update failed: {error_msg}")
 
 # ─── Load CSV ─────────────────────────────────────────────────
 @st.cache_data(ttl=0)

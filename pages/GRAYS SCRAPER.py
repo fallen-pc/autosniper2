@@ -1,6 +1,7 @@
 import streamlit as st
 import os
 import pandas as pd
+import subprocess
 
 st.set_page_config(page_title="Extract Details", layout="wide")
 st.title("🛠️ Extract Vehicle Details")
@@ -15,11 +16,19 @@ if st.button("🚀 Run Detail Scraper"):
         st.error("❌ All links CSV not found.")
     else:
         with st.spinner("Extracting vehicle details from Grays listings..."):
-            exit_code = os.system("python scripts/extract_vehicle_details.py")
-            if exit_code == 0:
+            try:
+                result = subprocess.run(
+                    ["python", "scripts/extract_vehicle_details.py"],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
                 st.success("✅ Vehicle details successfully extracted.")
-            else:
-                st.error("❌ Script failed. Please check terminal or logs.")
+                if result.stdout:
+                    st.text(result.stdout)
+            except subprocess.CalledProcessError as e:
+                error_msg = e.stderr or e.stdout
+                st.error(f"❌ Script failed: {error_msg}")
 
 # ─── Show Output if Available ───────────────────────────────────
 if os.path.exists(OUTPUT_FILE):

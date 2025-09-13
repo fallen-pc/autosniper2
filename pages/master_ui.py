@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
+import subprocess
 
 st.set_page_config(page_title="Master Database", layout="wide")
 st.title("📊 Master Database")
@@ -13,12 +14,20 @@ REFERRED_FILE = "CSV_data/referred_cars.csv"
 # Run update script
 if st.button("🚀 Update Master Database"):
     with st.spinner("Updating master database..."):
-        exit_code = os.system("python scripts/update_master.py")
-        if exit_code == 0:
+        try:
+            result = subprocess.run(
+                ["python", "scripts/update_master.py"],
+                check=True,
+                capture_output=True,
+                text=True,
+            )
             st.success("✅ Master database updated.")
+            if result.stdout:
+                st.text(result.stdout)
             st.cache_data.clear()
-        else:
-            st.error("❌ Update failed. Check logs.")
+        except subprocess.CalledProcessError as e:
+            error_msg = e.stderr or e.stdout
+            st.error(f"❌ Update failed: {error_msg}")
 
 # Load and display data
 @st.cache_data(ttl=0)
