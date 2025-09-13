@@ -3,6 +3,7 @@ import pandas as pd
 import os
 import re
 import json
+import logging
 from openai import OpenAI
 from dotenv import load_dotenv
 from shared.ui_helpers import display_profit_bar
@@ -16,6 +17,10 @@ client = OpenAI()
 
 CSV_FILE = "CSV_data/vehicle_static_details.csv"
 VERDICT_FILE = "CSV_data/ai_verdicts.csv"
+LOG_FILE = "logs/ai_analysis_errors.log"
+
+os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
+logging.basicConfig(filename=LOG_FILE, level=logging.ERROR)
 
 # ─── Refresh Listings ─────────────────────────────────────────
 if st.button("🔄 Refresh Active Listings"):
@@ -113,21 +118,17 @@ if os.path.exists(CSV_FILE):
         response = client.chat.completions.create(
             model="gpt-4",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.4
+            temperature=0.4,
+            response_format={"type": "json_object"}
         )
 
-        raw = response.choices[0].message.content.strip()
+        raw = response.choices[0].message.content
 
-        # Extract JSON block even if text surrounds it
-        match = re.search(r"\{.*\}", raw, re.DOTALL)
-        if match:
-            try:
-                parsed = json.loads(match.group())
-                return parsed
-            except Exception as e:
-                return {"error": f"JSON parse failed: {e}", "raw": raw}
-        else:
-            return {"error": "No JSON found in response", "raw": raw}
+        try:
+            return json.loads(raw)
+        except json.JSONDecodeError as e:
+            logging.error("Invalid JSON from AI: %s - Raw: %s", e, raw)
+            return {"error": "Invalid JSON"}
     # ─── Display Listings ─────────────────────────────────────
     st.markdown(f"### {len(df)} Active Listings")
 
@@ -173,7 +174,6 @@ if os.path.exists(CSV_FILE):
                                 st.success("✅ AI analysis saved.")
                                 display_profit_bar(result["profit_margin_percent"], result["verdict"])
                             else:
-                                st.error("❌ Failed to parse AI response.")
-                                st.code(result["raw"])
+                                st.error("❌ AI analysis failed. Please try again later.")
 else:
     st.warning("vehicle_static_details.csv not found.")
