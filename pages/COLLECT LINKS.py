@@ -2,7 +2,10 @@ import os
 import streamlit as st
 import pandas as pd
 import os
+<<<<<<< HEAD
 from extract_links import extract_all_vehicle_links
+=======
+>>>>>>> 4cb049be (Your commit message)
 from scripts.extract_links import extract_all_vehicle_links
 
 st.set_page_config(page_title="Extract All Vehicle Links", layout="wide")
