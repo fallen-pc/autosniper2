@@ -53,7 +53,7 @@ def extract_all_vehicle_links(return_progress=False):
         for a in soup.find_all("a", href=True):
             href = a["href"]
             text = a.get_text(strip=True)
-            if re.search(r"/lot/\d+", href) and re.match(r"^\d{4}\b", text):
+            if re.search(r"/lot/\d+", href) and re.search(r"\b\d{4}\b", text):
                 if "motorbike" in text.lower() or "motor bike" in text.lower():
                     continue
                 full_url = "https://www.grays.com" + href if href.startswith("/") else href
