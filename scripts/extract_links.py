@@ -10,7 +10,12 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
 }
 
-def extract_all_vehicle_links(return_progress=False):
+def extract_all_vehicle_links(
+    return_progress=False,
+    save_debug_html_on_empty=True,
+    debug_html_dir="logs",
+    html_sample_chars=50000,
+):
     progress_data = {
         "pages_processed": 0,
         "total_links": 0,
@@ -22,6 +27,8 @@ def extract_all_vehicle_links(return_progress=False):
     all_links = []
     page = 1
     max_pages = None  # Will be determined after first page
+
+    html_sample_saved = False
 
     while True:
         url = f"{BASE_URL}?tab=items&isdesktop=1&page={page}"
@@ -65,7 +72,33 @@ def extract_all_vehicle_links(return_progress=False):
         progress_data["pages_processed"] = page
         progress_data["status"] = f"processed page {page}"
 
-        if not unique_links or (max_pages and page >= max_pages):
+        if not unique_links:
+            progress_data["status"] = f"no links found on page {page}"
+            print(
+                "No links detected on page",
+                page,
+                "- HTML structure may have changed.",
+            )
+            if save_debug_html_on_empty and not html_sample_saved:
+                try:
+                    os.makedirs(debug_html_dir, exist_ok=True)
+                    sample_path = os.path.join(
+                        debug_html_dir, f"page_{page}_no_links.html"
+                    )
+                    sample_content = (
+                        response.text[:html_sample_chars]
+                        if html_sample_chars is not None
+                        else response.text
+                    )
+                    with open(sample_path, "w", encoding="utf-8") as sample_file:
+                        sample_file.write(sample_content)
+                    print(f"📝 Saved HTML sample to {sample_path}")
+                    html_sample_saved = True
+                except OSError as exc:
+                    print(f"⚠️ Failed to save HTML sample: {exc}")
+            break
+
+        if max_pages and page >= max_pages:
             break
 
         page += 1
