@@ -7,7 +7,7 @@ import subprocess
 st.set_page_config(page_title="Viable Listings", layout="wide")
 st.title("📈 Viable Listings")
 
-DETAILS_FILE = "CSV_data/vehicle_static_details.csv"
+DETAILS_FILE = "CSV_data/active_vehicle_details.csv"
 VERDICT_FILE = "CSV_data/ai_verdicts.csv"
 
 # ─── Load and Merge Data ───────────────────────────────────────
@@ -15,37 +15,60 @@ if not os.path.exists(DETAILS_FILE) or not os.path.exists(VERDICT_FILE):
     st.info("Required CSV files are missing.")
     st.stop()
 
-details_df = pd.read_csv(DETAILS_FILE)
+active_df = pd.read_csv(DETAILS_FILE)
 verdict_df = pd.read_csv(VERDICT_FILE)
 
-merged_df = pd.merge(verdict_df, details_df, on="url", suffixes=("", "_details"))
+if "url" not in active_df.columns:
+    st.info("Active vehicle data is missing the 'url' column.")
+    st.stop()
+
+if "url" not in verdict_df.columns:
+    st.info("AI verdict data is missing the 'url' column.")
+    st.stop()
+
+verdict_cols = [
+    "url",
+    "verdict",
+    "profit_margin_percent",
+    "max_bid",
+    "resale_estimate",
+]
+existing_verdict_cols = [col for col in verdict_cols if col in verdict_df.columns]
+verdict_df = verdict_df[existing_verdict_cols]
+
+for required_col in ["verdict", "profit_margin_percent"]:
+    if required_col not in verdict_df.columns:
+        verdict_df[required_col] = pd.NA
+
+merged_df = pd.merge(active_df, verdict_df, on="url", how="left")
 
 if merged_df.empty:
     st.info("No listings available.")
     st.stop()
 
 # ─── Filter for Active & Viable ────────────────────────────────
-merged_df["status"] = merged_df["status"].astype(str).str.strip().str.lower()
-merged_df["profit_margin_percent"] = (
+merged_df["profit_margin_percent_numeric"] = pd.to_numeric(
     merged_df["profit_margin_percent"]
     .astype(str)
-    .str.replace("%", "", regex=False)
+    .str.replace("%", "", regex=False),
+    errors="coerce",
 )
-merged_df["profit_margin_percent"] = pd.to_numeric(
-    merged_df["profit_margin_percent"], errors="coerce"
-).fillna(0)
 
-viable_df = merged_df[
-    (merged_df["status"] == "active")
-    & (
-        (merged_df["verdict"].astype(str).str.lower() == "good")
-        | (merged_df["profit_margin_percent"] > 0)
-    )
-]
+verdict_profitable = merged_df["verdict"].astype(str).str.contains(
+    "profitable", case=False, na=False
+)
+positive_margin = merged_df["profit_margin_percent_numeric"].fillna(0) > 0
+
+viable_df = merged_df.loc[verdict_profitable | positive_margin].copy()
 
 if viable_df.empty:
     st.info("No viable listings found.")
     st.stop()
+
+viable_df["profit_margin_percent"] = viable_df["profit_margin_percent_numeric"].apply(
+    lambda x: f"{x:.1f}%" if pd.notna(x) else ""
+)
+viable_df.drop(columns=["profit_margin_percent_numeric"], inplace=True)
 
 # ─── Display and Selection ─────────────────────────────────────
 show_cols = [
@@ -59,9 +82,13 @@ show_cols = [
     "profit_margin_percent",
     "verdict",
     "url",
+    "max_bid",
+    "resale_estimate",
 ]
 
-viable_df = viable_df[show_cols]
+available_cols = [col for col in show_cols if col in viable_df.columns]
+
+viable_df = viable_df[available_cols]
 viable_df["Select"] = False
 
 edited_df = st.data_editor(
