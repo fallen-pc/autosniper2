@@ -10,7 +10,11 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
 }
 
-def extract_all_vehicle_links(return_progress=False):
+DEFAULT_MAX_PAGES = object()
+
+
+def extract_all_vehicle_links(return_progress=False, max_pages=DEFAULT_MAX_PAGES):
+    """Scrape vehicle listing links from Grays."""
     progress_data = {
         "pages_processed": 0,
         "total_links": 0,
@@ -18,10 +22,21 @@ def extract_all_vehicle_links(return_progress=False):
         "links_saved": 0,
         "status": "starting",
         "max_pages": None,
+        "detected_max_pages": None,
     }
     all_links = []
     page = 1
-    max_pages = None  # Will be determined after first page
+    detected_max_pages = None  # Will be determined after first page
+
+    using_detected_limit = max_pages is DEFAULT_MAX_PAGES
+    unlimited_mode = max_pages is None
+    max_pages_limit = None
+
+    if not using_detected_limit and not unlimited_mode:
+        max_pages_limit = max_pages
+        progress_data["max_pages"] = max_pages_limit
+    elif unlimited_mode:
+        print("ℹ️ No max_pages limit provided; continuing until no new links are found.")
 
     while True:
         url = f"{BASE_URL}?tab=items&isdesktop=1&page={page}"
@@ -39,15 +54,23 @@ def extract_all_vehicle_links(return_progress=False):
             break
 
         soup = BeautifulSoup(response.text, "html.parser")
-        if max_pages is None:
+        if detected_max_pages is None:
             # Estimate max pages from pagination (if available)
             pagination = soup.find("div", class_="pagination")
             if pagination:
-                last_page = pagination.find_all("a", href=True)[-1].get_text(strip=True)
-                max_pages = int(last_page) if last_page.isdigit() else 1
+                page_links = pagination.find_all("a", href=True)
+                last_page = page_links[-1].get_text(strip=True) if page_links else ""
+                detected_max_pages = int(last_page) if last_page.isdigit() else 1
             else:
-                max_pages = 1
-            progress_data["max_pages"] = max_pages
+                detected_max_pages = 1
+                print("⚠️ Pagination not found; defaulting to 1 page.")
+            progress_data["detected_max_pages"] = detected_max_pages
+
+            if using_detected_limit:
+                max_pages_limit = detected_max_pages
+                progress_data["max_pages"] = max_pages_limit
+            elif unlimited_mode:
+                progress_data["max_pages"] = None
 
         links = []
         for a in soup.find_all("a", href=True):
@@ -65,13 +88,14 @@ def extract_all_vehicle_links(return_progress=False):
         progress_data["pages_processed"] = page
         progress_data["status"] = f"processed page {page}"
 
-        if not unique_links or (max_pages and page >= max_pages):
+        if not unique_links or (max_pages_limit is not None and page >= max_pages_limit):
             break
 
         page += 1
 
     progress_data["unique_links"] = len(set(all_links))
-    progress_data["max_pages"] = max_pages
+    progress_data["max_pages"] = max_pages_limit
+    progress_data["detected_max_pages"] = detected_max_pages
     os.makedirs("CSV_data", exist_ok=True)
     df = pd.DataFrame(sorted(set(all_links)), columns=["url"])
     df.to_csv(OUTPUT_FILE, index=False)
