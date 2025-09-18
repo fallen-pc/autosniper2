@@ -5,7 +5,12 @@ import sys
 import tempfile
 import shutil
 
-from bs4 import BeautifulSoup
+try:
+    from bs4 import BeautifulSoup
+except ModuleNotFoundError:
+    print("BeautifulSoup is required. Install with `pip install -r requirements.txt`.")
+    sys.exit(1)
+
 from playwright.async_api import async_playwright
 
 try:
