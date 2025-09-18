@@ -108,10 +108,15 @@ if st.button("Refresh Selected"):
     else:
         with st.spinner("Updating selected listings..."):
             try:
-                subprocess.run(
-                    ["python", "scripts/update_bids.py", *selected_urls],
+                result = subprocess.run(
+                    ["python", "scripts/update_bids.py", "--urls", *selected_urls],
                     check=True,
+                    capture_output=True,
+                    text=True,
                 )
                 st.success("✅ Selected listings refreshed.")
+                if result.stdout:
+                    st.text(result.stdout)
             except subprocess.CalledProcessError as e:
-                st.error(f"❌ Update failed: {e}")
+                error_message = e.stderr or e.stdout or str(e)
+                st.error(f"❌ Update failed: {error_message}")
