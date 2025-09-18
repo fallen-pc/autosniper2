@@ -47,7 +47,7 @@ async def fetch_listing_data(url, page):
         return "N/A", "0", "Auction Ended"
 
 # ─── Main update loop ───────────────────────────────────────────
-async def update_all_bids():
+async def update_all_bids(urls=None):
     if not os.path.exists(CSV_FILE):
         print("❌ File not found:", CSV_FILE)
         return
@@ -65,6 +65,11 @@ async def update_all_bids():
     if "status" not in df.columns:
         df["status"] = "Unknown"
 
+    # Prepare optional URL filter
+    url_filter = None
+    if urls:
+        url_filter = {clean_url(u) for u in urls if isinstance(u, str) and u.strip()}
+
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         page = await browser.new_page()
@@ -72,6 +77,9 @@ async def update_all_bids():
         for idx, row in df.iterrows():
             url = clean_url(row.get("url", ""))
             if not url or not url.startswith("http"):
+                continue
+
+            if url_filter is not None and url not in url_filter:
                 continue
 
             print(f"🔄 Updating: {url}")
@@ -106,4 +114,10 @@ async def update_all_bids():
 
 # ─── Entry point ────────────────────────────────────────────────
 if __name__ == "__main__":
-    asyncio.run(update_all_bids())
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Update auction bid data")
+    parser.add_argument("--urls", nargs="*", help="Specific listing URLs to update", default=None)
+    args = parser.parse_args()
+
+    asyncio.run(update_all_bids(urls=args.urls))
