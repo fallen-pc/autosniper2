@@ -8,11 +8,17 @@ import shutil
 try:
     from bs4 import BeautifulSoup
 except ModuleNotFoundError as exc:
-    if getattr(exc, "name", None) == "bs4":
-        print("BeautifulSoup is required. Install with `pip install -r requirements.txt`.")
+    missing_module = getattr(exc, "name", None)
+    if missing_module == "bs4":
+        print(
+            "BeautifulSoup is required. Install with `pip install -r requirements.txt`.",
+            file=sys.stderr,
+        )
     else:
-        missing_module = getattr(exc, "name", str(exc))
-        print(f"Failed to import required module: {missing_module}")
+        print(
+            f"Failed to import required module: {missing_module or exc}",
+            file=sys.stderr,
+        )
     sys.exit(1)
 
 from playwright.async_api import async_playwright
