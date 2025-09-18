@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright
 from datetime import datetime
 
-CSV_FILE = "CSV_data/vehicle_static_details.csv"
+CSV_FILE_DEFAULT = "CSV_data/vehicle_static_details.csv"
 
 # ─── Clean URL from HTML anchor tag ─────────────────────────────
 def clean_url(url):
@@ -47,12 +47,12 @@ async def fetch_listing_data(url, page):
         return "N/A", "0", "Auction Ended"
 
 # ─── Main update loop ───────────────────────────────────────────
-async def update_all_bids(urls=None):
-    if not os.path.exists(CSV_FILE):
-        print("❌ File not found:", CSV_FILE)
+async def update_all_bids(urls=None, csv_path: str = CSV_FILE_DEFAULT):
+    if not os.path.exists(csv_path):
+        print("❌ File not found:", csv_path)
         return
 
-    df = pd.read_csv(CSV_FILE)
+    df = pd.read_csv(csv_path)
     if df.empty:
         print("⚠️ vehicle_static_details.csv is empty.")
         return
@@ -65,17 +65,26 @@ async def update_all_bids(urls=None):
     if "status" not in df.columns:
         df["status"] = "Unknown"
 
-    # Prepare optional URL filter
+    # Prepare cleaned URLs and optional URL filter
+    if "url" not in df.columns:
+        df["url"] = ""
+    df["clean_url"] = df["url"].apply(clean_url)
+
     url_filter = None
     if urls:
         url_filter = {clean_url(u) for u in urls if isinstance(u, str) and u.strip()}
+
+    if url_filter is not None:
+        df_to_update = df[df["clean_url"].isin(url_filter)]
+    else:
+        df_to_update = df
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         page = await browser.new_page()
 
-        for idx, row in df.iterrows():
-            url = clean_url(row.get("url", ""))
+        for idx, row in df_to_update.iterrows():
+            url = row.get("clean_url", "")
             if not url or not url.startswith("http"):
                 continue
 
@@ -105,11 +114,15 @@ async def update_all_bids(urls=None):
         await browser.close()
 
     # Save updated DataFrame using temp file to avoid conflicts
-    os.makedirs(os.path.dirname(CSV_FILE), exist_ok=True)
+    output_dir = os.path.dirname(csv_path)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
     temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".csv").name
-    df["url"] = df["url"].apply(clean_url)  # Ensure URLs are clean
+    df["url"] = df["clean_url"]
+    if "clean_url" in df.columns:
+        df = df.drop(columns=["clean_url"])
     df.to_csv(temp_file, index=False)
-    shutil.move(temp_file, CSV_FILE)
+    shutil.move(temp_file, csv_path)
     print("✅ vehicle_static_details.csv updated with status, price, bids, and auction outcome.")
 
 # ─── Entry point ────────────────────────────────────────────────
@@ -118,6 +131,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Update auction bid data")
     parser.add_argument("--urls", nargs="*", help="Specific listing URLs to update", default=None)
+    parser.add_argument("--file", default=CSV_FILE_DEFAULT, help="Path to the CSV file to update")
     args = parser.parse_args()
 
-    asyncio.run(update_all_bids(urls=args.urls))
+    asyncio.run(update_all_bids(urls=args.urls, csv_path=args.file))
