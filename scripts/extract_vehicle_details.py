@@ -1,11 +1,18 @@
 import asyncio
 import os
 import re
-import pandas as pd
-from bs4 import BeautifulSoup
-from playwright.async_api import async_playwright
+import sys
 import tempfile
 import shutil
+
+from bs4 import BeautifulSoup
+from playwright.async_api import async_playwright
+
+try:
+    import pandas as pd
+except ModuleNotFoundError:
+    print("Install with `pip install -r requirements.txt`")
+    sys.exit(1)
 
 # ─── File Paths ────────────────────────────────────────────────
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
